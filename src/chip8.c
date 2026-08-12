@@ -38,6 +38,47 @@ static bool chip8_fetch_opcode(const Chip8 *chip8, uint16_t *opcode)  {
     return true;
 }
 
+static bool chip8_execute(
+    Chip8 *chip8,
+    uint16_t opcode,
+    uint16_t instruction_pc
+)
+{
+    DecodedOpcode decoded = chip8_decode(opcode);
+
+    switch (opcode & 0xF000) {
+        case 0x1000:
+           chip8->pc = decoded.nnn;
+           return true; 
+
+        case 0x6000:
+            chip8->V[decoded.x] = decoded.nn;
+            return true;
+        case 0x7000:
+           chip8->V[decoded.x] += decoded.nn;
+           return true; 
+        case 0x8000:
+           switch (decoded.n) {
+                case 0x04: {
+                    uint16_t result = (uint_16_t) chip8->V[decoded.x] + chip8->V[decoded.y];
+                    chip8->V[0xF] = (result > 0xFF) ? 1 : 0;
+                    chip8->V[decoded.x] = (uint8_t) result;
+                    return true;
+                }
+           }
+        break;
+    }
+
+    fprintf(
+        stderr,
+        "Unknown opcode: 0x%04X at pc: 0x%03X\n",
+        opcode,
+        instruction_pc
+    );
+
+    return false;
+}
+
 // DecodedOpcode
 static DecodedOpcode chip8_decode(uint16_t opcode) {
     DecodedOpcode decoded = {
