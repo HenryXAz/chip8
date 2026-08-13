@@ -49,6 +49,12 @@ bool chip8_cycle(Chip8 *chip8);
 
 void chip8_dump_state(const Chip8 *chip8);
 
+static bool chip8_execute(
+    Chip8 *chip8,
+    uint16_t opcode,
+    uint16_t instruction_pc
+);
+
 // DecodedOpcode
 static DecodedOpcode chip8_decode(uint16_t opcode);
 

@@ -38,6 +38,47 @@ static bool chip8_fetch_opcode(const Chip8 *chip8, uint16_t *opcode)  {
     return true;
 }
 
+bool chip8_cycle(Chip8 *chip8) {
+    if (chip8->halted) {
+        return false;
+    }
+
+    uint16_t instruction_pc = chip8->pc;
+    uint16_t opcode;
+
+    if (!chip8_fetch_opcode(chip8, &opcode)) {
+        fprintf(stderr, "Failed to fetch opcode at pc: 0x%03X\n", chip8->pc);
+
+        chip8->halted = true;
+        return false;
+    }
+
+    chip8->pc += 2; 
+
+    if (!chip8_execute(chip8, opcode, instruction_pc)) {
+        chip8->halted = true;
+        return false; 
+    }
+
+    return true;
+}
+
+void chip8_dump_state(const Chip8 *chip8) {
+    printf(
+    "PC=0x%03X, I=0x%03X, SP=%u, "
+    "VO=0x%0x2X, V1=0x%02X, V2=0x%02X, V3=0x%02X, "
+    "VF=0x%02X\n",
+    chip8->pc,
+    chip8->I,
+    chip8->sp,
+    chip8->V[0],
+    chip8->V[1],
+    chip8->V[2],
+    chip8->V[3],
+    chip8->V[0xF]  
+    ); 
+}
+
 static bool chip8_execute(
     Chip8 *chip8,
     uint16_t opcode,
@@ -60,7 +101,7 @@ static bool chip8_execute(
         case 0x8000:
            switch (decoded.n) {
                 case 0x04: {
-                    uint16_t result = (uint_16_t) chip8->V[decoded.x] + chip8->V[decoded.y];
+                    uint16_t result = (uint16_t) chip8->V[decoded.x] + chip8->V[decoded.y];
                     chip8->V[0xF] = (result > 0xFF) ? 1 : 0;
                     chip8->V[decoded.x] = (uint8_t) result;
                     return true;
