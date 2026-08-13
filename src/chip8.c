@@ -67,10 +67,64 @@ static bool chip8_execute(
            return true; 
         case 0x8000:
            switch (decoded.n) {
+                case 0x00:
+                    chip8->V[decoded.x] = chip8->V[decoded.y];
+                    return true; 
+
+                case 0x01:
+                    chip8->V[decoded.x] |= chip8->V[decoded.y];
+                    return true; 
+
+                case 0x02:
+                    chip8->V[decoded.x] &= chip8->V[decoded.y];
+                    return true;
+
+                case  0x03:
+                    chip8->V[decoded.x] ^= chip8->V[decoded.y];
+                    return true; 
+                
                 case 0x04: {
                     uint16_t result = (uint16_t) chip8->V[decoded.x] + chip8->V[decoded.y];
                     chip8->V[0xF] = (result > 0xFF) ? 1 : 0;
                     chip8->V[decoded.x] = (uint8_t) result;
+                    return true;
+                }
+
+                case 0x05: {
+                    uint8_t vx = chip8->V[decoded.x];
+                    uint8_t vy = chip8->V[decoded.y];
+
+                    chip8->V[0xF] = vx >= vy;
+                    chip8->V[decoded.x] = (uint8_t)(vx - vy);
+
+                    return true;
+                }
+
+                case 0x06: {
+                    uint8_t vx = chip8->V[decoded.x];
+
+                    chip8->V[0xF] = vx & 0x01u;
+                    chip8->V[decoded.x] = (uint8_t)(vx >> 1);
+
+                    return true;
+                }
+
+                case 0x07: {
+                    uint8_t vx = chip8->V[decoded.x];
+                    uint8_t vy = chip8->V[decoded.y];
+
+                    chip8->V[0xF] = vy >= vx;
+                    chip8->V[decoded.x] = (uint8_t)(vy - vx); 
+
+                    return true;
+                }
+
+                case 0xE: {
+                    uint8_t vx = chip8->V[decoded.x];
+
+                    chip8->V[0xF] = (vx >> 7) & 0x01u;
+                    chip8->V[decoded.x] = (uint8_t)(vx << 1);
+
                     return true;
                 }
            }
@@ -135,17 +189,13 @@ bool chip8_cycle(Chip8 *chip8) {
 }
 
 void chip8_dump_state(const Chip8 *chip8) {
-    printf(
-    "PC=0x%03X, I=0x%03X, SP=%u, "
-    "V0=0x%02X, V1=0x%02X, V2=0x%02X, V3=0x%02X, "
-    "VF=0x%02X\n",
-    chip8->pc,
-    chip8->I,
-    chip8->sp,
-    chip8->V[0],
-    chip8->V[1],
-    chip8->V[2],
-    chip8->V[3],
-    chip8->V[0xF]  
-    ); 
+    printf("PC=0x%03X I=0x%03X SP=%u\n", chip8->pc, chip8->I, chip8->sp);
+
+    for (int i = 0; i<16; i++) {
+        printf(" V%X=0x%02X%s ",
+            i,
+            chip8->V[i],
+            (i == 15) ? "\n" : ""
+        );
+    }
 }

@@ -6,11 +6,11 @@ int main()
     Chip8 chip8;
     chip8_init(&chip8);    
 
-    uint8_t program[] = {
-        0x61, 0x05, // LD V1, 0x05
-        0x62, 0x0A, // LD V2, 0x0A
-        0x81, 0x24, // ADD V1, V2
-        0x12, 0x06  // JP 0x206
+    uint8_t program[] = { 
+        0x65, 0x0A,
+        0x66, 0x05,
+        0x85, 0x65,
+        0x12, 0x06
     };
 
     if (!chip8_load_program(&chip8, program, sizeof(program))) {
