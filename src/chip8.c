@@ -3,26 +3,34 @@
 #include <stdio.h>
 #include <string.h>
 
-void chip8_init(Chip8 *chip8) {
-    memset(chip8, 0, sizeof(*chip8));
 
-    chip8->pc = CHIP8_PROGRAM_START;
-}
+typedef struct {
+    uint8_t x;
+    uint8_t y;
+    uint8_t n;
+    uint8_t nn;
+    uint16_t nnn;
+} DecodedOpcode;
 
-bool chip8_load_program(Chip8 *chip8, const uint8_t *program, size_t size) {
-    size_t memory_available = CHIP8_MEMORY_SIZE - CHIP8_PROGRAM_START;
 
-    if (size > memory_available) {
-        return 0;
-    }
+static DecodedOpcode chip8_decode(uint16_t opcode) ;
+static bool chip8_fetch_opcode(const Chip8 *chip8, uint16_t *opcode);
+static bool chip8_execute(
+    Chip8 *chip8,
+    uint16_t opcode,
+    uint16_t instruction_pc
+);
 
-    memcpy(
-        &chip8->memory[CHIP8_PROGRAM_START],
-        program,
-        size
-    );
+static DecodedOpcode chip8_decode(uint16_t opcode) {
+    DecodedOpcode decoded = {
+        .x =  (uint8_t)  ((opcode & 0x0F00) >> 8),
+        .y =  (uint8_t)  ((opcode & 0x00F0) >> 4),
+        .n =  (uint8_t)  (opcode & 0x00F),
+        .nn = (uint8_t)  (opcode & 0x00FF),
+        .nnn = (uint16_t)(opcode & 0x0FFF)
+    };
 
-    return true;
+    return decoded;
 }
 
 static bool chip8_fetch_opcode(const Chip8 *chip8, uint16_t *opcode)  {
@@ -36,47 +44,6 @@ static bool chip8_fetch_opcode(const Chip8 *chip8, uint16_t *opcode)  {
     *opcode = (high << 8) | low;
 
     return true;
-}
-
-bool chip8_cycle(Chip8 *chip8) {
-    if (chip8->halted) {
-        return false;
-    }
-
-    uint16_t instruction_pc = chip8->pc;
-    uint16_t opcode;
-
-    if (!chip8_fetch_opcode(chip8, &opcode)) {
-        fprintf(stderr, "Failed to fetch opcode at pc: 0x%03X\n", chip8->pc);
-
-        chip8->halted = true;
-        return false;
-    }
-
-    chip8->pc += 2; 
-
-    if (!chip8_execute(chip8, opcode, instruction_pc)) {
-        chip8->halted = true;
-        return false; 
-    }
-
-    return true;
-}
-
-void chip8_dump_state(const Chip8 *chip8) {
-    printf(
-    "PC=0x%03X, I=0x%03X, SP=%u, "
-    "VO=0x%0x2X, V1=0x%02X, V2=0x%02X, V3=0x%02X, "
-    "VF=0x%02X\n",
-    chip8->pc,
-    chip8->I,
-    chip8->sp,
-    chip8->V[0],
-    chip8->V[1],
-    chip8->V[2],
-    chip8->V[3],
-    chip8->V[0xF]  
-    ); 
 }
 
 static bool chip8_execute(
@@ -120,15 +87,65 @@ static bool chip8_execute(
     return false;
 }
 
-// DecodedOpcode
-static DecodedOpcode chip8_decode(uint16_t opcode) {
-    DecodedOpcode decoded = {
-        .x = (opcode & 0x0F00) >> 8,
-        .y = (opcode & 0x00F0) >> 4,
-        .n = opcode & 0x00F,
-        .nn = opcode & 0x00FF,
-        .nnn = opcode & 0x0FFF
-    };
+void chip8_init(Chip8 *chip8) {
+    memset(chip8, 0, sizeof(*chip8));
 
-    return decoded;
+    chip8->pc = CHIP8_PROGRAM_START;
+}
+
+bool chip8_load_program(Chip8 *chip8, const uint8_t *program, size_t size) {
+    size_t memory_available = CHIP8_MEMORY_SIZE - CHIP8_PROGRAM_START;
+
+    if (size > memory_available) {
+        return 0;
+    }
+
+    memcpy(
+        &chip8->memory[CHIP8_PROGRAM_START],
+        program,
+        size
+    );
+
+    return true;
+}
+
+bool chip8_cycle(Chip8 *chip8) {
+    if (chip8->halted) {
+        return false;
+    }
+
+    uint16_t instruction_pc = chip8->pc;
+    uint16_t opcode;
+
+    if (!chip8_fetch_opcode(chip8, &opcode)) {
+        fprintf(stderr, "Failed to fetch opcode at pc: 0x%03X\n", chip8->pc);
+
+        chip8->halted = true;
+        return false;
+    }
+
+    chip8->pc += 2; 
+
+    if (!chip8_execute(chip8, opcode, instruction_pc)) {
+        chip8->halted = true;
+        return false; 
+    }
+
+    return true;
+}
+
+void chip8_dump_state(const Chip8 *chip8) {
+    printf(
+    "PC=0x%03X, I=0x%03X, SP=%u, "
+    "V0=0x%02X, V1=0x%02X, V2=0x%02X, V3=0x%02X, "
+    "VF=0x%02X\n",
+    chip8->pc,
+    chip8->I,
+    chip8->sp,
+    chip8->V[0],
+    chip8->V[1],
+    chip8->V[2],
+    chip8->V[3],
+    chip8->V[0xF]  
+    ); 
 }

@@ -32,14 +32,6 @@ typedef struct {
     bool halted;
 } Chip8;
 
-typedef struct {
-    uint8_t x;
-    uint8_t y;
-    uint8_t n;
-    uint8_t nn;
-    uint8_t nnn;
-} DecodedOpcode;
-
 //  Chip8
 void chip8_init(Chip8 *chip8);
 
@@ -48,14 +40,5 @@ bool chip8_load_program(Chip8 *chip8, const uint8_t *program, size_t size);
 bool chip8_cycle(Chip8 *chip8);
 
 void chip8_dump_state(const Chip8 *chip8);
-
-static bool chip8_execute(
-    Chip8 *chip8,
-    uint16_t opcode,
-    uint16_t instruction_pc
-);
-
-// DecodedOpcode
-static DecodedOpcode chip8_decode(uint16_t opcode);
 
 #endif
