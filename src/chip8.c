@@ -20,6 +20,7 @@ static bool chip8_execute(
     uint16_t opcode,
     uint16_t instruction_pc
 );
+static bool chip8_memory_range_valid(uint16_t start, size_t length);
 
 static DecodedOpcode chip8_decode(uint16_t opcode) {
     DecodedOpcode decoded = {
@@ -189,6 +190,61 @@ static bool chip8_execute(
                     return true;
                 }
            }
+        case 0xA000:
+           chip8->I = decoded.nnn;
+           return true;
+        case 0xF000:
+            switch (opcode & 0x00FFu) {
+                case 0x1E:
+                    chip8->I = (uint16_t)(chip8->I + chip8->V[decoded.x]);
+                return true;
+                case 0x33: {
+                    uint8_t value = chip8->V[decoded.x];
+
+                    chip8->memory[chip8->I] = (uint8_t)(value / 100u);
+                    chip8->memory[chip8->I + 1u] = (uint8_t)((value / 10u) % 10u);
+                    chip8->memory[chip8->I + 2u] = (uint8_t)(value % 10u);
+                    return true;
+                } 
+                case 0x55: {
+                    size_t count = (size_t)(decoded.x + 1u);
+
+                    if (!chip8_memory_range_valid(chip8->I, count)) {
+                        fprintf(
+                            stderr,
+                            "Memory write out of bounds at PC=0x%03X\n",
+                            (unsigned int) instruction_pc
+                        );
+
+                        return false;
+                    }
+
+                    for (size_t i=0; i < count; ++i) {
+                        chip8->memory[(size_t)chip8->I + i] = chip8->V[i];
+                    }
+
+                return true;
+                }
+                case 0x65: {
+                    size_t count = (size_t)(decoded.x) + 1u;
+                    
+                    if (!chip8_memory_range_valid(chip8->I, count)) {
+                        fprintf(
+                            stderr,
+                            "Memory read out of bounds at PC=0x%03X",
+                            (unsigned int)instruction_pc
+                        );
+
+                        return false;
+                    }
+
+                    for (size_t i=0; i < count; ++i) {
+                        chip8->V[i] = chip8->memory[(size_t)chip8->I + i];
+                    }
+
+                return true;
+                }
+           }
         break;
     }
 
@@ -200,6 +256,15 @@ static bool chip8_execute(
     );
 
     return false;
+}
+
+static bool chip8_memory_range_valid(uint16_t start, size_t length)
+{
+    if (start >= CHIP8_MEMORY_SIZE) {
+        return false;
+    }
+
+    return length <= CHIP8_MEMORY_SIZE - start;
 }
 
 void chip8_init(Chip8 *chip8) {
@@ -267,4 +332,20 @@ void chip8_dump_state(const Chip8 *chip8) {
     }
 
     printf("\n");
+}
+
+void chip8_memory_dump(const Chip8 *chip8, uint16_t start, size_t length) 
+{
+    if (!chip8_memory_range_valid(start, length)) {
+        printf("Invalid memory range\n");
+        return;
+    }
+
+    for (size_t i = 0; i<length; ++i) {
+        printf(
+            "0x%03X: 0x%02X\n",
+            (unsigned int) ((size_t) start + i),
+            (unsigned int) chip8->memory[(size_t) start + i]
+        );
+    }
 }

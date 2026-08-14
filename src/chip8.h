@@ -40,5 +40,6 @@ bool chip8_load_program(Chip8 *chip8, const uint8_t *program, size_t size);
 bool chip8_cycle(Chip8 *chip8);
 
 void chip8_dump_state(const Chip8 *chip8);
+void chip8_memory_dump(const Chip8 *chip8, uint16_t start, size_t length);
 
 #endif
