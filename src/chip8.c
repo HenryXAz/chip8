@@ -54,11 +54,72 @@ static bool chip8_execute(
 {
     DecodedOpcode decoded = chip8_decode(opcode);
 
+    if (opcode == 0x00EE) {
+        if (chip8->sp == 0) {
+            fprintf(
+                stderr,
+                "Stack underflow at pc=0x%03X",
+                (uint16_t) instruction_pc
+            );
+
+            return false;
+        }
+
+        chip8->sp--;
+        chip8->pc = chip8->stack[chip8->sp];
+
+        return true;
+    }
+
     switch (opcode & 0xF000) {
         case 0x1000:
            chip8->pc = decoded.nnn;
            return true; 
+        case 0x2000: {
+            if (chip8->sp >= CHIP8_STACK_SIZE) {
+                fprintf(
+                    stderr,
+                    "Stack Overflow at PC=0x%03X\n",
+                    instruction_pc
+                );
 
+                return false;
+            }
+
+            chip8->stack[chip8->sp] = chip8->pc;
+            chip8->sp++; 
+            chip8->pc = decoded.nnn;
+
+            return true;
+        }
+        case 0x3000:
+            if (chip8->V[decoded.x] == decoded.nn) {
+                chip8->pc +=2;
+            }
+            return true;
+        case 0x4000:
+            if (chip8->V[decoded.x] != decoded.nn) {
+                chip8->pc += 2;
+            }
+            return true;
+        case 0x5000:
+            if (decoded.n != 0) {
+                break;
+            }
+
+            if (chip8->V[decoded.x] == chip8->V[decoded.y]) {
+                chip8->pc +=2;
+            }
+            return true;
+        case 0x9000:
+            if (decoded.n != 0) {
+                break;
+            }
+
+            if (chip8->V[decoded.x] != chip8->V[decoded.y]) {
+                chip8->pc += 2;
+            }
+            return true;
         case 0x6000:
             chip8->V[decoded.x] = decoded.nn;
             return true;
@@ -198,4 +259,12 @@ void chip8_dump_state(const Chip8 *chip8) {
             (i == 15) ? "\n" : ""
         );
     }
+
+    printf("Stack:");
+
+    for (unsigned int i=0; i < chip8->sp; ++i) {
+        printf(" [0x%03x]", (unsigned int)(chip8->stack[i]));
+    }
+
+    printf("\n");
 }
