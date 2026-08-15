@@ -8,9 +8,11 @@
 #define CHIP8_MEMORY_SIZE 4096
 #define CHIP8_REGISTER_COUNT 16
 #define CHIP8_STACK_SIZE 16
-#define CHIP8_DISPLAY_WITH 64
+#define CHIP8_DISPLAY_WIDTH 64
 #define CHIP8_DISPLAY_HEIGHT 32
 #define CHIP8_PROGRAM_START 0x200
+#define CHIP8_FONT_START 0x050
+#define CHIP8_FONT_BYTES_PER_CHAR 0x05
 
 typedef struct {
     uint8_t memory[CHIP8_MEMORY_SIZE];
@@ -26,7 +28,7 @@ typedef struct {
     uint8_t delay_timer;
     uint8_t sound_timer;
 
-    uint8_t display[CHIP8_DISPLAY_HEIGHT * CHIP8_DISPLAY_WITH];
+    uint8_t display[CHIP8_DISPLAY_HEIGHT * CHIP8_DISPLAY_WIDTH];
     uint8_t keypad[16];
 
     bool halted;
@@ -41,5 +43,6 @@ bool chip8_cycle(Chip8 *chip8);
 
 void chip8_dump_state(const Chip8 *chip8);
 void chip8_memory_dump(const Chip8 *chip8, uint16_t start, size_t length);
+void chip8_dump_display(const Chip8 *chip8);
 
 #endif

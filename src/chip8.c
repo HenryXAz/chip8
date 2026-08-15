@@ -12,6 +12,24 @@ typedef struct {
     uint16_t nnn;
 } DecodedOpcode;
 
+static const uint8_t chip8_font[] = {
+    /* 0 */ 0xF0, 0x90, 0x90, 0x90, 0xF0,
+    /* 1 */ 0x20, 0x60, 0x20, 0x20, 0x70,
+    /* 2 */ 0xF0, 0x10, 0xF0, 0x80, 0xF0,
+    /* 3 */ 0xF0, 0x10, 0xF0, 0x10, 0xF0,
+    /* 4 */ 0x90, 0x90, 0xF0, 0x10, 0x10,
+    /* 5 */ 0xF0, 0x80, 0xF0, 0x10, 0xF0,
+    /* 6 */ 0xF0, 0x80, 0xF0, 0x90, 0xF0,
+    /* 7 */ 0xF0, 0x10, 0x20, 0x40, 0x40,
+    /* 8 */ 0xF0, 0x90, 0xF0, 0x90, 0xF0,
+    /* 9 */ 0xF0, 0x90, 0xF0, 0x10, 0xF0,
+    /* A */ 0xF0, 0x90, 0xF0, 0x90, 0x90,
+    /* B */ 0xE0, 0x90, 0xE0, 0x90, 0xE0,
+    /* C */ 0xF0, 0x80, 0x80, 0x80, 0xF0,
+    /* D */ 0xE0, 0x90, 0x90, 0x90, 0xE0,
+    /* E */ 0xF0, 0x80, 0xF0, 0x80, 0xF0,
+    /* F */ 0xF0, 0x80, 0xF0, 0x80, 0x80
+};
 
 static DecodedOpcode chip8_decode(uint16_t opcode) ;
 static bool chip8_fetch_opcode(const Chip8 *chip8, uint16_t *opcode);
@@ -69,6 +87,11 @@ static bool chip8_execute(
         chip8->sp--;
         chip8->pc = chip8->stack[chip8->sp];
 
+        return true;
+    }
+
+    if (opcode == 0x00E0) {
+        memset(chip8->display, 0, sizeof(chip8->display));
         return true;
     }
 
@@ -193,8 +216,67 @@ static bool chip8_execute(
         case 0xA000:
            chip8->I = decoded.nnn;
            return true;
+        case 0xD000: {
+            uint8_t x = chip8->V[decoded.x];
+            uint8_t y = chip8->V[decoded.y];
+            uint8_t height = decoded.n;
+
+            if (!chip8_memory_range_valid(chip8->I, height)) {
+                fprintf(
+                    stderr,
+                    "Sprite read out of bounds at PC=0x%03X",
+                    (unsigned int)instruction_pc
+                );
+
+                return false;
+            }
+
+            chip8->V[0XF] = 0u;
+
+            for (uint8_t row = 0; row < height; ++row) {
+                uint8_t sprite = chip8->memory[chip8->I + row];
+
+                for (uint8_t col = 0; col < 8; ++col) {
+                    uint8_t mask = (uint8_t)(0x80u >> col);
+
+                    if ((sprite & mask) == 0) {
+                        continue;
+                    }
+
+                    uint8_t screen_x = (uint8_t)((x + col) % CHIP8_DISPLAY_WIDTH);
+                    uint8_t screen_y = (uint8_t)((y + row) % CHIP8_DISPLAY_HEIGHT);
+
+                    size_t index = (size_t)(screen_y * CHIP8_DISPLAY_WIDTH + screen_x);
+
+                    if (chip8->display[index] == 1) {
+                        chip8->V[0xF] = 1;
+                    }
+                    
+                    chip8->display[index] ^= 1u;
+                }
+            }
+            return true;
+        }    
         case 0xF000:
             switch (opcode & 0x00FFu) {
+                case 0x29: {
+                    uint8_t digit = chip8->V[decoded.x];
+
+                    if (digit > 0x0F) {
+                        fprintf(
+                            stderr,
+                            "Invalid font digit 0x%02X at PC=0x%03X",
+                            (unsigned int) digit,
+                            (unsigned int) instruction_pc
+                        );
+
+                        return false;
+                    }
+
+                    chip8->I = CHIP8_FONT_START + (uint16_t)(digit * CHIP8_FONT_BYTES_PER_CHAR);
+
+                    return true;
+                }
                 case 0x1E:
                     chip8->I = (uint16_t)(chip8->I + chip8->V[decoded.x]);
                 return true;
@@ -271,6 +353,12 @@ void chip8_init(Chip8 *chip8) {
     memset(chip8, 0, sizeof(*chip8));
 
     chip8->pc = CHIP8_PROGRAM_START;
+
+    memcpy(
+        &chip8->memory[CHIP8_FONT_START],
+        chip8_font,
+        sizeof(chip8_font)
+    );
 }
 
 bool chip8_load_program(Chip8 *chip8, const uint8_t *program, size_t size) {
@@ -300,7 +388,7 @@ bool chip8_cycle(Chip8 *chip8) {
     if (!chip8_fetch_opcode(chip8, &opcode)) {
         fprintf(stderr, "Failed to fetch opcode at pc: 0x%03X\n", chip8->pc);
 
-        chip8->halted = true;
+        chip8->halted = true; 
         return false;
     }
 
@@ -347,5 +435,15 @@ void chip8_memory_dump(const Chip8 *chip8, uint16_t start, size_t length)
             (unsigned int) ((size_t) start + i),
             (unsigned int) chip8->memory[(size_t) start + i]
         );
+    }
+}
+
+void chip8_dump_display(const Chip8 *chip8) {
+    for (unsigned int y = 0; y < CHIP8_DISPLAY_HEIGHT; ++y) {
+        for (unsigned int x = 0; x < CHIP8_DISPLAY_WIDTH; ++x) {
+            size_t index = (size_t) y * CHIP8_DISPLAY_WIDTH + x;
+            putchar(chip8->display[index] ? '#' : '.');
+        }
+        putchar('\n');
     }
 }
