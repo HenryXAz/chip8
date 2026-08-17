@@ -107,41 +107,35 @@ int main(int argc, char* argv[])
         return 1;
     } 
   
-    printf("ROM size: %ld bytes \n", file_size);
-    
-    printf(
-        "Successfully opened ROM: %s\n",
-        rom_path
-    );
-
     fclose(file);
 
     Chip8 chip8;
-    chip8_init(&chip8);    
-
-    if (!chip8_load_program(&chip8, rom, sizeof(rom))) {
+    chip8_init(&chip8);
+ 
+    if (!chip8_load_program(&chip8, rom, bytes_read)) {
         fprintf(stderr, "Program is too large to fit in memory\n");
         free(rom);
 
         return 1;
     }
 
-    chip8_memory_dump(
-        &chip8,
-        CHIP8_PROGRAM_START,
-        (size_t)file_size
-    );
 
     for (int i = 0; i < 10u; i++) {
         chip8_dump_state(&chip8);
+
+        if (i == 0x03) {
+            chip8.keypad[0xA] = 0x01;
+        }
 
         if(!chip8_cycle(&chip8)) {
             break;
         }
     }
 
+    chip8_memory_dump(&chip8, 0x200, 9);
     chip8_dump_state(&chip8);
     chip8_memory_dump(&chip8, 0x350, 3);
+    chip8_dump_keypad(&chip8);
 
     return 0;    
 }

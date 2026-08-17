@@ -44,5 +44,6 @@ bool chip8_cycle(Chip8 *chip8);
 void chip8_dump_state(const Chip8 *chip8);
 void chip8_memory_dump(const Chip8 *chip8, uint16_t start, size_t length);
 void chip8_dump_display(const Chip8 *chip8);
+void chip8_dump_keypad(const Chip8 *chip8);
 
 #endif

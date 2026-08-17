@@ -257,6 +257,38 @@ static bool chip8_execute(
             }
             return true;
         }    
+        case 0xE000: {
+            uint8_t key = chip8->V[decoded.x];
+
+            if (key > 0x0F) {
+                fprintf(
+                    stderr,
+                    "Invalid keypad index 0x%02X "
+                    "at PC=0x%03X",
+                    (unsigned int) key,
+                    (unsigned int) instruction_pc
+                );
+
+                return false;
+            }
+
+            switch(decoded.nn) {
+                case 0x9E: {
+                    if (chip8->keypad[key] != 0x00) {
+                        chip8->pc += 0x02;
+                    }
+
+                    return true;
+                }
+                case 0xA1: {
+                    if (chip8->keypad[key] == 0x00) {
+                        chip8->pc += 0x02;
+                    }
+
+                    return true;
+                }
+            }
+        }
         case 0xF000:
             switch (opcode & 0x00FFu) {
                 case 0x29: {
@@ -325,6 +357,25 @@ static bool chip8_execute(
                     }
 
                 return true;
+                }
+           }
+            switch (decoded.nn) {
+                case 0x0A: {
+                    for (
+                        unsigned int key = 0;
+                        key < 0x10;
+                        ++key
+                    ) {
+                        if (chip8->keypad[key] != 0x00) {
+                            chip8->V[decoded.x] = (uint8_t) key;
+
+                            return true;
+                        }
+                    }
+
+                    chip8->pc = instruction_pc;
+
+                    return true;
                 }
            }
         break;
@@ -445,5 +496,12 @@ void chip8_dump_display(const Chip8 *chip8) {
             putchar(chip8->display[index] ? '#' : '.');
         }
         putchar('\n');
+    }
+}
+
+void chip8_dump_keypad(const Chip8 *chip8) {
+
+    for (uint8_t i=0; i<0x10; ++i) {
+        printf("keypad[0x%02X]=0x%02X \n", i, chip8->keypad[i]);    
     }
 }
