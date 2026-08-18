@@ -76,7 +76,7 @@ void frontend_destroy(Frontend *frontend)
     SDL_Quit();
 }
 
-bool frontend_render(Frontend *frontend) {
+bool frontend_render(Frontend *frontend, const Chip8 *chip8) {
     if (!SDL_SetRenderDrawColor(
         frontend->renderer,
         0u,
@@ -103,25 +103,49 @@ bool frontend_render(Frontend *frontend) {
         return false;
     }
 
-    SDL_FRect rect = {
-        .x = 50.0f,
-        .y = 30.0f,
-        .w = 100.0f,
-        .h = 100.0f
-    };
+    for (unsigned int y = 0; y < CHIP8_DISPLAY_HEIGHT; ++y) {
+        for (unsigned int x = 0; x < CHIP8_DISPLAY_WIDTH; ++x) {
+            size_t index = (size_t) y * CHIP8_DISPLAY_WIDTH + x;
 
-    if (!SDL_RenderFillRect(
-        frontend->renderer,
-        &rect
-    )) {
-        fprintf(
-            stderr,
-            "Could not draw rectangle: %s\n",
-            SDL_GetError()
-        );
+            if (chip8->display[index] == 0x00) {
+                continue;
+            }
 
-        return false;
+            SDL_FRect rect = {
+                .x = (float)(x * FRONTEND_SCALE),
+                .y = (float)(y * FRONTEND_SCALE),
+                .w = (float) FRONTEND_SCALE,
+                .h = (float) FRONTEND_SCALE
+            };
+
+            if (!SDL_RenderFillRect(frontend->renderer, &rect)) {
+                fprintf(stderr, "Could not draw pixel: %s\n", SDL_GetError());
+                return false;
+            }
+
+        }
     }
+
+
+    // SDL_FRect rect = {
+    //     .x = 50.0f,
+    //     .y = 30.0f,
+    //     .w = 100.0f,
+    //     .h = 100.0f
+    // };
+
+    // if (!SDL_RenderFillRect(
+    //     frontend->renderer,
+    //     &rect
+    // )) {
+    //     fprintf(
+    //         stderr,
+    //         "Could not draw rectangle: %s\n",
+    //         SDL_GetError()
+    //     );
+
+    //     return false;
+    // }
     
     if (!SDL_RenderPresent(frontend->renderer)) {
         fprintf(stderr, "Could not present renderer: %s\n", SDL_GetError());

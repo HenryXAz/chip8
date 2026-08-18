@@ -14,13 +14,138 @@ static double current_time_seconds(void) {
     return (double) ts.tv_sec + (double) ts.tv_nsec / 1000000000.0;
 }
 
-int main(void) 
+int main(int argc, char* argv[]) 
 {
+    if (argc != 2) {
+        fprintf(
+            stderr,
+            "Usage:%s <rom-file>\n",
+            argv[0]
+        );
+        
+        return 1;
+    }
+
+    const char *rom_path = argv[1];
+   
+    FILE *file = fopen(rom_path, "rb");     
+
+    if (file == NULL) {
+        fprintf(
+            stderr,
+            "Could not open ROM: %s\n",
+            rom_path
+        );
+
+        return 1;
+    }
+
+    if (fseek(file, 0L, SEEK_END) != 0) {
+        fprintf(
+            stderr,
+            "Could not seek ROM\n"
+        );
+
+        fclose(file);
+        return 1;
+    }
+
+    long file_size = ftell(file);
+
+    if (file_size < 0L) {
+        fprintf(
+            stderr,
+            "Could not determine size ROM \n"
+        );
+        fclose(file);
+
+        return 1;
+    }
+
+    const long max_rom_size = (long)(CHIP8_MEMORY_SIZE - CHIP8_PROGRAM_START);
+
+    if (file_size > max_rom_size) {
+        fprintf(
+            stderr,
+            "ROM is too large: %ld bytes "
+            "(maximum %ld bytes)\n",
+            file_size,
+            max_rom_size
+        );
+        fclose(file);
+
+        return 1;
+    }
+
+    if (fseek(file, 0L, SEEK_SET) != 0) {
+        fprintf(
+            stderr,
+            "Could not rewind ROM\n"
+        );
+        fclose(file);
+
+        return 1;
+    }
+    
+    if (file_size == 0L) {
+        fprintf(stderr, "ROM is empty\n");
+        fclose(file);
+        return 1;
+    }
+
+    uint8_t *rom = malloc((size_t) file_size);
+
+    if (rom == NULL) {
+        fprintf(stderr, "Could not allocate ROM buffer\n");
+        fclose(file);
+
+        return 1;
+    }
+
+    size_t bytes_read = fread(rom, 1, (size_t) file_size, file);
+
+    if (bytes_read != (size_t)file_size) {
+        fprintf(
+            stderr,
+            "Could not read complete rom "
+            "expected %ld bytes, read %zu\n",
+            file_size,
+            bytes_read
+        );
+
+        free(rom);    
+        fclose(file);
+
+        return 1;
+    } 
+  
+    fclose(file);
+
+    Chip8 chip8;
+    chip8_init(&chip8);
+ 
     Frontend *frontend = frontend_create();
 
     if (frontend == NULL) {
         return 1;
     }
+
+    if (!chip8_load_program(&chip8, rom, bytes_read)) {
+        fprintf(stderr, "Program is too large to fit in memory\n");
+        free(rom);
+
+        return 1;
+    }
+
+
+    for (unsigned int i =0; i< 0x05; ++i) {
+        if (!chip8_cycle(&chip8)) {
+            fprintf(stderr, "CHIP8 execution failed\n");
+
+            frontend_destroy(frontend);
+            return 1;
+        }
+    }    
 
     bool running = true;
 
@@ -31,7 +156,7 @@ int main(void)
             break;
         }
 
-        if (!frontend_render(frontend)) {
+        if (!frontend_render(frontend, &chip8)) {
             running = false;
         }
     }
@@ -39,121 +164,6 @@ int main(void)
     frontend_destroy(frontend);
 
     return 0;
-
-    // if (argc != 2) {
-    //     fprintf(
-    //         stderr,
-    //         "Usage:%s <rom-file>\n",
-    //         argv[0]
-    //     );
-        
-    //     return 1;
-    // }
-
-    // const char *rom_path = argv[1];
-   
-    // FILE *file = fopen(rom_path, "rb");     
-
-    // if (file == NULL) {
-    //     fprintf(
-    //         stderr,
-    //         "Could not open ROM: %s\n",
-    //         rom_path
-    //     );
-
-    //     return 1;
-    // }
-
-    // if (fseek(file, 0L, SEEK_END) != 0) {
-    //     fprintf(
-    //         stderr,
-    //         "Could not seek ROM\n"
-    //     );
-
-    //     fclose(file);
-    //     return 1;
-    // }
-
-    // long file_size = ftell(file);
-
-    // if (file_size < 0L) {
-    //     fprintf(
-    //         stderr,
-    //         "Could not determine size ROM \n"
-    //     );
-    //     fclose(file);
-
-    //     return 1;
-    // }
-
-    // const long max_rom_size = (long)(CHIP8_MEMORY_SIZE - CHIP8_PROGRAM_START);
-
-    // if (file_size > max_rom_size) {
-    //     fprintf(
-    //         stderr,
-    //         "ROM is too large: %ld bytes "
-    //         "(maximum %ld bytes)\n",
-    //         file_size,
-    //         max_rom_size
-    //     );
-    //     fclose(file);
-
-    //     return 1;
-    // }
-
-    // if (fseek(file, 0L, SEEK_SET) != 0) {
-    //     fprintf(
-    //         stderr,
-    //         "Could not rewind ROM\n"
-    //     );
-    //     fclose(file);
-
-    //     return 1;
-    // }
-    
-    // if (file_size == 0L) {
-    //     fprintf(stderr, "ROM is empty\n");
-    //     fclose(file);
-    //     return 1;
-    // }
-
-    // uint8_t *rom = malloc((size_t) file_size);
-
-    // if (rom == NULL) {
-    //     fprintf(stderr, "Could not allocate ROM buffer\n");
-    //     fclose(file);
-
-    //     return 1;
-    // }
-
-    // size_t bytes_read = fread(rom, 1, (size_t) file_size, file);
-
-    // if (bytes_read != (size_t)file_size) {
-    //     fprintf(
-    //         stderr,
-    //         "Could not read complete rom "
-    //         "expected %ld bytes, read %zu\n",
-    //         file_size,
-    //         bytes_read
-    //     );
-
-    //     free(rom);    
-    //     fclose(file);
-
-    //     return 1;
-    // } 
-  
-    // fclose(file);
-
-    // Chip8 chip8;
-    // chip8_init(&chip8);
- 
-    // if (!chip8_load_program(&chip8, rom, bytes_read)) {
-    //     fprintf(stderr, "Program is too large to fit in memory\n");
-    //     free(rom);
-
-    //     return 1;
-    // }
 
     // const double cpu_frequency = 0x2BC;
     // const double timer_frequency = 0x3C;
