@@ -120,7 +120,7 @@ int main(int argc, char* argv[])
     }
 
 
-    for (int i = 0; i < 10u; i++) {
+    for (int i = 0; i < 0x02; i++) {
         chip8_dump_state(&chip8);
 
         if (i == 0x03) {
@@ -131,6 +131,21 @@ int main(int argc, char* argv[])
             break;
         }
     }
+
+    chip8.delay_timer = 0x01;
+    chip8.sound_timer = 0x01;
+
+    printf("Before tick: \n");
+    chip8_dump_state(&chip8);
+    chip8_tick_timers(&chip8);
+
+    printf("After tick 1: \n");
+    chip8_dump_state(&chip8); 
+    chip8_tick_timers(&chip8);
+
+    printf("After tick 2: \n");
+    chip8_dump_state(&chip8);
+    chip8_tick_timers(&chip8);
 
     chip8_memory_dump(&chip8, 0x200, 9);
     chip8_dump_state(&chip8);

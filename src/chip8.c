@@ -464,6 +464,16 @@ bool chip8_cycle(Chip8 *chip8) {
     return true;
 }
 
+void chip8_tick_timers(Chip8 *chip8) {
+    if (chip8->delay_timer > 0x00) {
+        chip8->delay_timer--;
+    }
+
+    if (chip8->sound_timer > 0x00) {
+        chip8->sound_timer--;
+    }
+};
+
 void chip8_dump_state(const Chip8 *chip8) {
     printf("DT=0x%02X, ST=0x%02X\n ", (unsigned int)chip8->delay_timer, (unsigned int)chip8->sound_timer);
     printf("PC=0x%03X I=0x%03X SP=%u\n", chip8->pc, chip8->I, chip8->sp);
