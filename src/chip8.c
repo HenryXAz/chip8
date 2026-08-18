@@ -60,7 +60,7 @@ static bool chip8_fetch_opcode(const Chip8 *chip8, uint16_t *opcode)  {
     uint8_t high = chip8->memory[chip8->pc];
     uint8_t low = chip8->memory[chip8->pc + 1];
 
-    *opcode = (high << 8) | low;
+    *opcode = (uint16_t)( ((uint16_t) high << 8) | (uint16_t)low );
 
     return true;
 }
@@ -472,7 +472,7 @@ void chip8_tick_timers(Chip8 *chip8) {
     if (chip8->sound_timer > 0x00) {
         chip8->sound_timer--;
     }
-};
+}
 
 void chip8_dump_state(const Chip8 *chip8) {
     printf("DT=0x%02X, ST=0x%02X\n ", (unsigned int)chip8->delay_timer, (unsigned int)chip8->sound_timer);
