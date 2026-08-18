@@ -10,7 +10,8 @@
 
 
 struct Frontend {
-    SDL_Window * window;
+    SDL_Window *window;
+    SDL_Renderer *renderer;
 };
 
 Frontend *frontend_create(void) {
@@ -39,6 +40,21 @@ Frontend *frontend_create(void) {
         return NULL;
     }
 
+    frontend->renderer = SDL_CreateRenderer(frontend->window, NULL);
+
+    if (frontend->renderer == NULL) {
+        fprintf(stderr, "Could not create SDL renderer: %s\n", SDL_GetError());
+        SDL_GetError();
+
+        SDL_DestroyWindow(frontend->window);
+        free(frontend);
+        SDL_Quit();
+
+        return NULL;
+    }
+
+    
+
     return frontend;
 }
 
@@ -48,14 +64,71 @@ void frontend_destroy(Frontend *frontend)
         return;
     }
 
+    if (frontend->renderer != NULL) {
+        SDL_DestroyRenderer(frontend->renderer);
+    }
+
     if (frontend->window != NULL) {
-        SDL_DestroyWindow(
-            frontend->window
-        );
+        SDL_DestroyWindow(frontend->window);
     }
 
     free(frontend);
     SDL_Quit();
+}
+
+bool frontend_render(Frontend *frontend) {
+    if (!SDL_SetRenderDrawColor(
+        frontend->renderer,
+        0u,
+        0u,
+        0u,
+        255u
+    )) {
+        fprintf(stderr, "Could not set render color: %s\n", SDL_GetError());
+        return false;
+    }
+
+    if (!SDL_RenderClear(frontend->renderer)) {
+        fprintf(stderr, "Could not clear renderer: %s\n", SDL_GetError());
+        return false;
+    }
+
+    if (!SDL_SetRenderDrawColor(
+        frontend->renderer,
+        255u,
+        255u,
+        255u,
+        255u
+    )) {
+        return false;
+    }
+
+    SDL_FRect rect = {
+        .x = 50.0f,
+        .y = 30.0f,
+        .w = 100.0f,
+        .h = 100.0f
+    };
+
+    if (!SDL_RenderFillRect(
+        frontend->renderer,
+        &rect
+    )) {
+        fprintf(
+            stderr,
+            "Could not draw rectangle: %s\n",
+            SDL_GetError()
+        );
+
+        return false;
+    }
+    
+    if (!SDL_RenderPresent(frontend->renderer)) {
+        fprintf(stderr, "Could not present renderer: %s\n", SDL_GetError());
+        return false;
+    }
+
+    return true;
 }
 
 bool frontend_process_events(Frontend * frontend) 

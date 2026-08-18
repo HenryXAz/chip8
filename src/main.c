@@ -26,6 +26,14 @@ int main(void)
 
     while (running) {
         running = frontend_process_events(frontend);
+
+        if (!running) {
+            break;
+        }
+
+        if (!frontend_render(frontend)) {
+            running = false;
+        }
     }
 
     frontend_destroy(frontend);
