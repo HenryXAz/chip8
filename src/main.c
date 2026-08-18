@@ -1,6 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include "chip8.h"
+
+static double current_time_seconds(void) {
+    struct timespec ts;
+    
+    if (timespec_get(&ts, TIME_UTC) != TIME_UTC) {
+        return -1.0;
+    }
+
+    return (double) ts.tv_sec + (double) ts.tv_nsec / 1000000000.0;
+}
 
 int main(int argc, char* argv[]) 
 {
@@ -119,38 +130,67 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    const double cpu_frequency = 0x2BC;
+    const double timer_frequency = 0x3C;
 
-    for (int i = 0; i < 0x02; i++) {
-        chip8_dump_state(&chip8);
+    const double cpu_interval = 1.0 / cpu_frequency;
+    const double timer_interval = 1.0 / timer_frequency;
 
-        if (i == 0x03) {
-            chip8.keypad[0xA] = 0x01;
+    double start_time = current_time_seconds();
+
+    if (start_time < 0.0) {
+        fprintf(stderr, "Clock error \n");
+        return 1;
+    }
+
+    double previous_time = start_time;
+
+    double cpu_accumulator = 0.00;
+    double timer_accumulator = 0.00;
+
+    bool running = true;
+
+    printf("State before one second: \n");
+    chip8_dump_state(&chip8);
+
+    while (running) {
+        double current_time = current_time_seconds();
+
+        if (current_time < 0.00) {
+            fprintf(stderr, "Clock error \n");
+            return 1;
         }
 
-        if(!chip8_cycle(&chip8)) {
-            break;
+        double elapsed = current_time - previous_time;
+        previous_time = current_time;
+
+        cpu_accumulator += elapsed;
+        timer_accumulator += elapsed;
+
+
+        while(cpu_accumulator >= cpu_interval) {
+            if (!chip8_cycle(&chip8)) {
+                running = false;
+                break;
+            }
+
+            cpu_accumulator -= cpu_interval;
+        }
+
+
+        while(timer_accumulator >= timer_interval) {
+            chip8_tick_timers(&chip8);
+
+            timer_accumulator -= timer_interval;
+        }
+
+        if (current_time - start_time >= 1.0) {
+            running = false;
         }
     }
 
-    chip8.delay_timer = 0x01;
-    chip8.sound_timer = 0x01;
-
-    printf("Before tick: \n");
+    printf("Final state after one second: \n");
     chip8_dump_state(&chip8);
-    chip8_tick_timers(&chip8);
-
-    printf("After tick 1: \n");
-    chip8_dump_state(&chip8); 
-    chip8_tick_timers(&chip8);
-
-    printf("After tick 2: \n");
-    chip8_dump_state(&chip8);
-    chip8_tick_timers(&chip8);
-
-    chip8_memory_dump(&chip8, 0x200, 9);
-    chip8_dump_state(&chip8);
-    chip8_memory_dump(&chip8, 0x350, 3);
-    chip8_dump_keypad(&chip8);
 
     return 0;    
 }
