@@ -291,6 +291,17 @@ static bool chip8_execute(
         }
         case 0xF000:
             switch (opcode & 0x00FFu) {
+                case 0x07: {
+                    chip8->V[decoded.x] = chip8->delay_timer;
+                }
+                case 0x15: {
+                    chip8->delay_timer = chip8->V[decoded.x];
+                    return true;
+                }
+                case 0x18: {
+                    chip8->sound_timer = chip8->V[decoded.x];
+                    return true;
+                }
                 case 0x29: {
                     uint8_t digit = chip8->V[decoded.x];
 
@@ -454,6 +465,7 @@ bool chip8_cycle(Chip8 *chip8) {
 }
 
 void chip8_dump_state(const Chip8 *chip8) {
+    printf("DT=0x%02X, ST=0x%02X\n ", (unsigned int)chip8->delay_timer, (unsigned int)chip8->sound_timer);
     printf("PC=0x%03X I=0x%03X SP=%u\n", chip8->pc, chip8->I, chip8->sp);
 
     for (int i = 0; i<16; i++) {
