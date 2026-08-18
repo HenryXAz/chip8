@@ -137,95 +137,82 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    const double cpu_frequency = 0x2bc;
+    const double timer_frequency = 0x3c;
+    const double render_frequency = 0x3c;
 
-    for (unsigned int i =0; i< 0x05; ++i) {
-        if (!chip8_cycle(&chip8)) {
-            fprintf(stderr, "CHIP8 execution failed\n");
+    const double cpu_interval = 1.0 / cpu_frequency;
+    const double timer_interval = 1.0 / timer_frequency;
+    const double render_interval = 1.0 / render_frequency;
 
-            frontend_destroy(frontend);
-            return 1;
-        }
-    }    
+    double cpu_accumulator = 0.00;
+    double timer_accumulator = 0.00;
+    double render_accumulator = 0.00;
+
+    double previous_time = current_time_seconds();
 
     bool running = true;
 
     while (running) {
-        running = frontend_process_events(frontend);
+        double current_time = current_time_seconds();
+
+        if (current_time < 0.0) {
+            fprintf(stderr, "Clock error \n");
+            break;
+        }
+
+        double elapsed = current_time - previous_time;
+
+        if (elapsed > 0.1) {
+            elapsed = 0.1;
+        }
+
+        previous_time = current_time;
+
+        cpu_accumulator += elapsed;
+        timer_accumulator += elapsed;
+        render_accumulator += elapsed;
+
+        /*  Host input/events */
+        if (!frontend_process_events(frontend)) {
+            running = false;
+            break;
+        }
+
+        /* CHIP8 CPU */
+        while (cpu_accumulator >= cpu_interval) {
+            if (!chip8_cycle(&chip8)) {
+                fprintf(stderr, "CHIP-8 execution error \n");
+                running = false;
+
+                break;
+            }
+
+            cpu_accumulator -= cpu_interval;
+        }
 
         if (!running) {
             break;
         }
 
-        if (!frontend_render(frontend, &chip8)) {
-            running = false;
+        /* CHIP-8 timers*/
+        while (timer_accumulator >= timer_interval) {
+            chip8_tick_timers(&chip8);
+            timer_accumulator -= timer_interval;
+        }
+
+        /* Host Rendering */
+        if (render_accumulator >= render_interval) {
+            if (!frontend_render(frontend, &chip8)) {
+                running = false;
+                break;
+            }
+
+            render_accumulator -= render_interval;
         }
     }
 
     frontend_destroy(frontend);
 
     return 0;
-
-    // const double cpu_frequency = 0x2BC;
-    // const double timer_frequency = 0x3C;
-
-    // const double cpu_interval = 1.0 / cpu_frequency;
-    // const double timer_interval = 1.0 / timer_frequency;
-
-    // double start_time = current_time_seconds();
-
-    // if (start_time < 0.0) {
-    //     fprintf(stderr, "Clock error \n");
-    //     return 1;
-    // }
-
-    // double previous_time = start_time;
-
-    // double cpu_accumulator = 0.00;
-    // double timer_accumulator = 0.00;
-
-    // bool running = true;
-
-    // printf("State before one second: \n");
-    // chip8_dump_state(&chip8);
-
-    // while (running) {
-    //     double current_time = current_time_seconds();
-
-    //     if (current_time < 0.00) {
-    //         fprintf(stderr, "Clock error \n");
-    //         return 1;
-    //     }
-
-    //     double elapsed = current_time - previous_time;
-    //     previous_time = current_time;
-
-    //     cpu_accumulator += elapsed;
-    //     timer_accumulator += elapsed;
-
-
-    //     while(cpu_accumulator >= cpu_interval) {
-    //         if (!chip8_cycle(&chip8)) {
-    //             running = false;
-    //             break;
-    //         }
-
-    //         cpu_accumulator -= cpu_interval;
-    //     }
-
-
-    //     while(timer_accumulator >= timer_interval) {
-    //         chip8_tick_timers(&chip8);
-
-    //         timer_accumulator -= timer_interval;
-    //     }
-
-    //     if (current_time - start_time >= 1.0) {
-    //         running = false;
-    //     }
-    // }
-
-    // printf("Final state after one second: \n");
-    // chip8_dump_state(&chip8);
-
-    // return 0;    
 }
